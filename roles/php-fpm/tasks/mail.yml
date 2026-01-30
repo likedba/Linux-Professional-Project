@@ -1,0 +1,57 @@
+- name: Install PHP and extensions
+  apt:
+    name:
+      - php-fpm
+      - php-pgsql
+      - php-curl
+      - php-gd
+      - php-mbstring
+      - php-xml
+      - php-xmlrpc
+    state: present
+    update_cache: yes
+  tags: php-fpm
+
+- name: Determine PHP version
+  shell: php --version | head -1 | cut -d' ' -f2 | cut -d'.' -f1-2
+  register: php_version
+  changed_when: false
+  tags: php-fpm
+
+- name: Configure PHP-FPM pool
+  template:
+    src: www.conf.j2
+    dest: "/etc/php/{{ php_version.stdout }}/fpm/pool.d/www.conf"
+  notify: restart php-fpm
+  tags: php-fpm
+
+- name: Download WordPress
+  unarchive:
+    src: https://wordpress.org/latest.tar.gz
+    dest: /var/www/
+    remote_src: yes
+    creates: /var/www/wordpress
+  tags: wordpress
+
+- name: Set permissions for WordPress
+  file:
+    path: /var/www/wordpress
+    owner: www-data
+    group: www-data
+    recurse: yes
+    mode: '0755'
+  tags: wordpress
+
+- name: Allow port 9000 for PHP-FPM
+  ufw:
+    rule: allow
+    port: 9000
+    proto: tcp
+  tags: php-fpm,firewall
+
+- name: Ensure PHP-FPM is running and enabled
+  systemd:
+    name: "php{{ php_version.stdout }}-fpm"
+    state: started
+    enabled: yes
+  tags: php-fpm

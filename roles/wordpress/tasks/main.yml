@@ -1,0 +1,24 @@
+- name: Get WordPress salts from API
+  uri:
+    url: https://api.wordpress.org/secret-key/1.1/salt/
+    return_content: yes
+  register: wp_salts
+  delegate_to: localhost
+  run_once: yes
+  tags: wordpress
+
+- name: Configure wp-config.php with Patroni cluster connection
+  template:
+    src: wp-config.php.j2
+    dest: /var/www/wordpress/wp-config.php
+  vars:
+    wp_salts: "{{ wp_salts.content }}"
+  tags: wordpress
+
+- name: Set permissions on wp-config.php
+  file:
+    path: /var/www/wordpress/wp-config.php
+    owner: www-data
+    group: www-data
+    mode: '0640'
+  tags: wordpress

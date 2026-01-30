@@ -1,0 +1,15 @@
+- name: Add Zabbix repository
+  apt_repository:
+    repo: "deb https://repo.zabbix.com/zabbix/6.0/ubuntu focal main"
+    state: present
+    update_cache: yes
+
+- name: Install Zabbix server, frontend, agent
+  apt:
+    name:
+      - zabbix-server-pgsql
+      - zabbix-frontend-php
+      - zabbix-apache-conf
+      - zabbix-sql-scripts
+      - zabbix-agent
+    state: present

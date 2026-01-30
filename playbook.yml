@@ -1,0 +1,36 @@
+- hosts: frontend,backend,elk,zabbix,control
+  become: yes
+  gather_facts: yes
+  tasks:
+    - name: Update and upgrade Ubuntu packages
+      apt:
+        update_cache: yes
+        upgrade: dist
+        cache_valid_time: 3600
+      when: not ansible_check_mode
+      tags: update
+
+- hosts: frontend
+  become: yes
+  roles:
+    - nginx
+  tags: frontend
+
+- hosts: backend
+  become: yes
+  roles:
+    - php-fpm
+    - wordpress
+  tags: backend
+
+- hosts: elk
+  become: yes
+  roles:
+    - elk
+  tags: elk
+
+- hosts: zabbix
+  become: yes
+  roles:
+    - zabbix
+  tags: zabbix

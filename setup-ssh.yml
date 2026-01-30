@@ -1,0 +1,12 @@
+---
+- name: Setup SSH authentication for aleksei user
+  hosts: all
+  gather_facts: no
+
+  tasks:
+    - name: Copy SSH public key to remote hosts USING PASSWORD
+      ansible.posix.authorized_key:
+        user: aleksei
+        state: present
+        key: "{{ lookup('file', '/home/aleksei/.ssh/id_rsa.pub') }}"
+        manage_dir: yes
