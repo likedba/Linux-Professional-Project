@@ -1,0 +1,52 @@
+- name: Install Nginx
+  apt:
+    name: nginx
+    state: present
+    update_cache: yes
+  tags: nginx
+
+- name: Copy backend Nginx config
+  template:
+    src: wordpress-backend.conf.j2
+    dest: /etc/nginx/sites-available/wordpress-backend
+  notify: restart nginx
+  tags: nginx
+
+- name: Remove default Nginx site
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: restart nginx
+  tags: nginx
+
+- name: Enable WordPress backend site
+  file:
+    src: /etc/nginx/sites-available/wordpress-backend
+    dest: /etc/nginx/sites-enabled/wordpress-backend
+    state: link
+    force: yes
+  notify: restart nginx
+  tags: nginx
+
+- name: Test nginx configuration
+  command: nginx -t
+  register: nginx_test
+  changed_when: false
+  failed_when: nginx_test.rc != 0
+  notify: restart nginx
+  tags: nginx
+
+- name: Allow port 80 for backend Nginx
+  ufw:
+    rule: allow
+    port: 80
+    proto: tcp
+  tags: nginx,firewall
+
+- name: Ensure Nginx is running and enabled
+  systemd:
+    name: nginx
+    state: started
+    enabled: yes
+    daemon_reload: yes
+  tags: nginx

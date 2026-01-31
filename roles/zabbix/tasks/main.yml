@@ -1,15 +1,111 @@
+- name: Install GnuPG
+  apt:
+    name: gnupg
+    state: present
+
+- name: Download Zabbix GPG key
+  get_url:
+    url: https://repo.zabbix.com/zabbix-official-repo.key
+    dest: /usr/share/keyrings/zabbix.asc
+    mode: '0644'
+  register: zabbix_gpg_key
+
+- name: Dearmor Zabbix GPG key
+  command: gpg --dearmor -o /usr/share/keyrings/zabbix.gpg /usr/share/keyrings/zabbix.asc
+  when: zabbix_gpg_key.changed
+
+- name: Ensure Zabbix GPG key permissions
+  file:
+    path: /usr/share/keyrings/zabbix.gpg
+    mode: '0644'
+
 - name: Add Zabbix repository
   apt_repository:
-    repo: "deb https://repo.zabbix.com/zabbix/6.0/ubuntu focal main"
+    repo: "deb [signed-by=/usr/share/keyrings/zabbix.gpg] https://repo.zabbix.com/zabbix/6.0/ubuntu {{ ansible_distribution_release }} main"
     state: present
     update_cache: yes
 
 - name: Install Zabbix server, frontend, agent
   apt:
     name:
+      - postgresql
+      - python3-psycopg2
       - zabbix-server-pgsql
       - zabbix-frontend-php
       - zabbix-apache-conf
       - zabbix-sql-scripts
       - zabbix-agent
     state: present
+
+- name: Ensure PostgreSQL is running and enabled
+  systemd:
+    name: postgresql
+    state: started
+    enabled: yes
+
+- name: Check if Zabbix database user exists
+  command: "sudo -u postgres psql -tAc \"SELECT 1 FROM pg_roles WHERE rolname='{{ zabbix_db_user }}'\""
+  register: zabbix_db_user_check
+  changed_when: false
+  become: yes
+
+- name: Create Zabbix database user
+  command: "sudo -u postgres psql -c \"CREATE USER {{ zabbix_db_user }} WITH PASSWORD '{{ zabbix_db_password }}'\""
+  when: zabbix_db_user_check.stdout.strip() != "1"
+  become: yes
+
+- name: Check if Zabbix database exists
+  command: "sudo -u postgres psql -tAc \"SELECT 1 FROM pg_database WHERE datname='{{ zabbix_db_name }}'\""
+  register: zabbix_db_check
+  changed_when: false
+  become: yes
+
+- name: Create Zabbix database
+  command: "sudo -u postgres psql -c \"CREATE DATABASE {{ zabbix_db_name }} OWNER {{ zabbix_db_user }} ENCODING 'UTF8'\""
+  when: zabbix_db_check.stdout.strip() != "1"
+  become: yes
+
+- name: Check if Zabbix schema is loaded
+  command: "sudo -u postgres psql -tAc \"SELECT 1 FROM information_schema.tables WHERE table_name='users'\" {{ zabbix_db_name }}"
+  register: zabbix_schema_check
+  changed_when: false
+  become: yes
+
+- name: Import Zabbix database schema
+  command: "sudo -u postgres zcat /usr/share/zabbix-sql-scripts/postgresql/server.sql.gz | sudo -u postgres psql {{ zabbix_db_name }}"
+  when: zabbix_schema_check.stdout.strip() != "1"
+  become: yes
+
+- name: Configure Zabbix server database settings
+  lineinfile:
+    path: /etc/zabbix/zabbix_server.conf
+    regexp: "^{{ item.key }}="
+    line: "{{ item.key }}={{ item.value }}"
+  loop:
+    - { key: "DBName", value: "{{ zabbix_db_name }}" }
+    - { key: "DBUser", value: "{{ zabbix_db_user }}" }
+    - { key: "DBPassword", value: "{{ zabbix_db_password }}" }
+
+- name: Set PHP timezone for Zabbix frontend
+  lineinfile:
+    path: /etc/zabbix/apache.conf
+    regexp: '^php_value\[date.timezone\]'
+    line: "php_value[date.timezone] = {{ zabbix_php_timezone }}"
+
+- name: Ensure Zabbix server is running and enabled
+  systemd:
+    name: zabbix-server
+    state: started
+    enabled: yes
+
+- name: Ensure Zabbix agent is running and enabled
+  systemd:
+    name: zabbix-agent
+    state: started
+    enabled: yes
+
+- name: Ensure Apache is running and enabled
+  systemd:
+    name: apache2
+    state: started
+    enabled: yes
