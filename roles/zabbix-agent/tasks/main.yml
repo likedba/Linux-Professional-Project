@@ -1,0 +1,24 @@
+- name: Install Zabbix agent
+  apt:
+    name: zabbix-agent
+    state: present
+    update_cache: yes
+  tags: zabbix-agent
+
+- name: Configure Zabbix agent server settings
+  lineinfile:
+    path: /etc/zabbix/zabbix_agentd.conf
+    regexp: "^{{ item.key }}="
+    line: "{{ item.key }}={{ item.value }}"
+  loop:
+    - { key: "Server", value: "{{ zabbix_server_ip }}" }
+    - { key: "ServerActive", value: "{{ zabbix_server_ip }}" }
+    - { key: "Hostname", value: "{{ inventory_hostname }}" }
+  tags: zabbix-agent
+
+- name: Ensure Zabbix agent is running and enabled
+  systemd:
+    name: zabbix-agent
+    state: started
+    enabled: yes
+  tags: zabbix-agent
