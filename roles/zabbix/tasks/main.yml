@@ -72,7 +72,7 @@
   become: yes
 
 - name: Import Zabbix database schema
-  command: "sudo -u postgres zcat /usr/share/zabbix-sql-scripts/postgresql/server.sql.gz | sudo -u postgres psql {{ zabbix_db_name }}"
+  shell: "sudo -u postgres bash -lc \"zcat /usr/share/zabbix-sql-scripts/postgresql/server.sql.gz | psql {{ zabbix_db_name }}\""
   when: zabbix_schema_check.stdout.strip() != "1"
   become: yes
 
