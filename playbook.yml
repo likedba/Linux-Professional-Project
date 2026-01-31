@@ -9,6 +9,13 @@
       when: inventory_hostname in groups['zabbix']
       tags: update
 
+    - name: Remove Grafana list file on Zabbix host
+      file:
+        path: /etc/apt/sources.list.d/grafana.list
+        state: absent
+      when: inventory_hostname in groups['zabbix']
+      tags: update
+
     - name: Update and upgrade Ubuntu packages
       apt:
         update_cache: yes
