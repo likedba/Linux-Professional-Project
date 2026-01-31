@@ -1,12 +1,64 @@
----
-- name: Setup SSH authentication for aleksei user
-  hosts: all
+- name: Generate SSH key for aleksei
+  hosts: localhost
   gather_facts: no
-
+  connection: local
   tasks:
-    - name: Copy SSH public key to remote hosts USING PASSWORD
+    - name: Create SSH key pair for aleksei
+      community.crypto.openssh_keypair:
+        path: /home/aleksei/.ssh/id_rsa
+        type: rsa
+        size: 4096
+        owner: aleksei
+        group: aleksei
+        mode: '0600'
+        force: no
+      register: keygen_result
+
+    - name: Store public key in variable
+      set_fact:
+        ssh_pub_key: "{{ keygen_result.public_key }}"
+      run_once: true
+
+- name: Distribute SSH key to Ubuntu hosts
+  hosts: frontend,backend,control,elk,zabbix
+  gather_facts: no
+  vars:
+    ansible_user: aleksei
+    
+  tasks:
+    - name: Ensure .ssh directory exists (Ubuntu)
+      file:
+        path: /home/aleksei/.ssh
+        state: directory
+        mode: '0700'
+        owner: aleksei
+        group: aleksei
+
+    - name: Add SSH key to authorized_keys (Ubuntu)
       ansible.posix.authorized_key:
         user: aleksei
         state: present
-        key: "{{ lookup('file', '/home/aleksei/.ssh/id_rsa.pub') }}"
+        key: "{{ hostvars['localhost']['ssh_pub_key'] }}"
         manage_dir: yes
+
+- name: Distribute SSH key to SLES hosts
+  hosts: database
+  gather_facts: no
+  vars:
+    ansible_user: aleksei
+    
+  tasks:
+    - name: Ensure .ssh directory exists (SLES)
+      file:
+        path: /home/aleksei/.ssh
+        state: directory
+        mode: '0700'
+        owner: aleksei
+        group: users  # На SLES группа называется users
+
+    - name: Add SSH key to authorized_keys (SLES)
+      raw: |
+        mkdir -p ~/.ssh
+        echo "{{ hostvars['localhost']['ssh_pub_key'] }}" >> ~/.ssh/authorized_keys
+        chmod 700 ~/.ssh
+        chmod 600 ~/.ssh/authorized_keys
