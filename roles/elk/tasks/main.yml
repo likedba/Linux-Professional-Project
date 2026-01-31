@@ -3,15 +3,33 @@
     name: openjdk-11-jdk
     state: present
 
-- name: Add Elastic GPG key
-  apt_key:
-    url: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+- name: Install GnuPG
+  apt:
+    name: gnupg
     state: present
+
+- name: Download Elastic GPG key
+  get_url:
+    url: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+    dest: /usr/share/keyrings/elastic.asc
+    mode: '0644'
+  register: elastic_gpg_key
+
+- name: Dearmor Elastic GPG key
+  command: gpg --dearmor -o /usr/share/keyrings/elastic.gpg /usr/share/keyrings/elastic.asc
+  when: elastic_gpg_key.changed
+
+- name: Ensure Elastic GPG key permissions
+  file:
+    path: /usr/share/keyrings/elastic.gpg
+    mode: '0644'
 
 - name: Add Elastic repository
   apt_repository:
-    repo: "deb https://artifacts.elastic.co/packages/7.x/apt stable main"
+    repo: "deb [signed-by=/usr/share/keyrings/elastic.gpg] https://artifacts.elastic.co/packages/8.x/apt stable main"
     state: present
+    filename: elastic
+    update_cache: yes
 
 - name: Install ELK stack
   apt:
