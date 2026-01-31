@@ -1,40 +1,34 @@
-- name: Install Java
-  apt:
-    name: openjdk-11-jdk
-    state: present
-
-- name: Install GnuPG
-  apt:
-    name: gnupg
-    state: present
-
-- name: Download Elastic GPG key
-  get_url:
-    url: https://artifacts.elastic.co/GPG-KEY-elasticsearch
-    dest: /usr/share/keyrings/elastic.asc
-    mode: '0644'
-  register: elastic_gpg_key
-
-- name: Dearmor Elastic GPG key
-  command: gpg --dearmor -o /usr/share/keyrings/elastic.gpg /usr/share/keyrings/elastic.asc
-  when: elastic_gpg_key.changed
-
-- name: Ensure Elastic GPG key permissions
-  file:
-    path: /usr/share/keyrings/elastic.gpg
-    mode: '0644'
-
-- name: Add Elastic repository
-  apt_repository:
-    repo: "deb [signed-by=/usr/share/keyrings/elastic.gpg] https://artifacts.elastic.co/packages/8.x/apt stable main"
-    state: present
-    filename: elastic
-    update_cache: yes
-
-- name: Install ELK stack
+- name: Install Docker engine
   apt:
     name:
-      - elasticsearch
-      - logstash
-      - kibana
+      - docker.io
+      - docker-compose-plugin
     state: present
+    update_cache: yes
+
+- name: Ensure Docker is running and enabled
+  systemd:
+    name: docker
+    state: started
+    enabled: yes
+
+- name: Create ELK directory
+  file:
+    path: /opt/elk
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Deploy ELK docker compose file
+  copy:
+    src: docker-compose.yml
+    dest: /opt/elk/docker-compose.yml
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Start ELK stack
+  command: docker compose up -d
+  args:
+    chdir: /opt/elk
