@@ -1,0 +1,4 @@
+zabbix_db_name: zabbix
+zabbix_db_user: zabbix
+zabbix_db_password: zabbixpass
+zabbix_php_timezone: Europe/Moscow

@@ -1,13 +1,13 @@
 upstream backend_servers {
     least_conn;
-    server 192.168.1.143:9000;
-    server 192.168.1.144:9000;
+    server 192.168.1.143:80;
+    server 192.168.1.144:80;
 }
 
 server {
     listen 80;
     server_name _;
-    return 301 https://;
+    return 301 https://$host$request_uri;
 }
 
 server {
@@ -19,15 +19,15 @@ server {
 
     # SSL security
     ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512;
-    ssl_prefer_server_ciphers off;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
 
     location / {
         proxy_pass http://backend_servers;
-        proxy_set_header Host ;
-        proxy_set_header X-Real-IP ;
-        proxy_set_header X-Forwarded-For ;
-        proxy_set_header X-Forwarded-Proto ;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
         proxy_buffering off;
     }
 }
