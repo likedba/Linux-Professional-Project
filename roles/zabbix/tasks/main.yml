@@ -44,49 +44,37 @@
     enabled: yes
 
 - name: Check if Zabbix database user exists
-  command: "psql -tAc \"SELECT 1 FROM pg_roles WHERE rolname='{{ zabbix_db_user }}'\""
+  command: "sudo -u postgres psql -tAc \"SELECT 1 FROM pg_roles WHERE rolname='{{ zabbix_db_user }}'\""
   register: zabbix_db_user_check
   changed_when: false
   become: yes
-  become_user: postgres
-  become_flags: "-n"
 
 - name: Create Zabbix database user
-  command: "psql -c \"CREATE USER {{ zabbix_db_user }} WITH PASSWORD '{{ zabbix_db_password }}'\""
+  command: "sudo -u postgres psql -c \"CREATE USER {{ zabbix_db_user }} WITH PASSWORD '{{ zabbix_db_password }}'\""
   when: zabbix_db_user_check.stdout.strip() != "1"
   become: yes
-  become_user: postgres
-  become_flags: "-n"
 
 - name: Check if Zabbix database exists
-  command: "psql -tAc \"SELECT 1 FROM pg_database WHERE datname='{{ zabbix_db_name }}'\""
+  command: "sudo -u postgres psql -tAc \"SELECT 1 FROM pg_database WHERE datname='{{ zabbix_db_name }}'\""
   register: zabbix_db_check
   changed_when: false
   become: yes
-  become_user: postgres
-  become_flags: "-n"
 
 - name: Create Zabbix database
-  command: "psql -c \"CREATE DATABASE {{ zabbix_db_name }} OWNER {{ zabbix_db_user }} ENCODING 'UTF8'\""
+  command: "sudo -u postgres psql -c \"CREATE DATABASE {{ zabbix_db_name }} OWNER {{ zabbix_db_user }} ENCODING 'UTF8'\""
   when: zabbix_db_check.stdout.strip() != "1"
   become: yes
-  become_user: postgres
-  become_flags: "-n"
 
 - name: Check if Zabbix schema is loaded
-  command: "psql -tAc \"SELECT 1 FROM information_schema.tables WHERE table_name='users'\" {{ zabbix_db_name }}"
+  command: "sudo -u postgres psql -tAc \"SELECT 1 FROM information_schema.tables WHERE table_name='users'\" {{ zabbix_db_name }}"
   register: zabbix_schema_check
   changed_when: false
   become: yes
-  become_user: postgres
-  become_flags: "-n"
 
 - name: Import Zabbix database schema
-  command: "zcat /usr/share/zabbix-sql-scripts/postgresql/server.sql.gz | psql {{ zabbix_db_name }}"
+  command: "sudo -u postgres zcat /usr/share/zabbix-sql-scripts/postgresql/server.sql.gz | sudo -u postgres psql {{ zabbix_db_name }}"
   when: zabbix_schema_check.stdout.strip() != "1"
   become: yes
-  become_user: postgres
-  become_flags: "-n"
 
 - name: Configure Zabbix server database settings
   lineinfile:
