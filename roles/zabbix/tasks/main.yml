@@ -1,6 +1,27 @@
+- name: Install GnuPG
+  apt:
+    name: gnupg
+    state: present
+
+- name: Download Zabbix GPG key
+  get_url:
+    url: https://repo.zabbix.com/zabbix-official-repo.key
+    dest: /usr/share/keyrings/zabbix.asc
+    mode: '0644'
+  register: zabbix_gpg_key
+
+- name: Dearmor Zabbix GPG key
+  command: gpg --dearmor -o /usr/share/keyrings/zabbix.gpg /usr/share/keyrings/zabbix.asc
+  when: zabbix_gpg_key.changed
+
+- name: Ensure Zabbix GPG key permissions
+  file:
+    path: /usr/share/keyrings/zabbix.gpg
+    mode: '0644'
+
 - name: Add Zabbix repository
   apt_repository:
-    repo: "deb https://repo.zabbix.com/zabbix/6.0/ubuntu focal main"
+    repo: "deb [signed-by=/usr/share/keyrings/zabbix.gpg] https://repo.zabbix.com/zabbix/6.0/ubuntu {{ ansible_distribution_release }} main"
     state: present
     update_cache: yes
 
