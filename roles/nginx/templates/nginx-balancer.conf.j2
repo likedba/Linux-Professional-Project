@@ -1,7 +1,7 @@
 upstream backend_servers {
     least_conn;
-    server 192.168.1.143:9000;
-    server 192.168.1.144:9000;
+    server 192.168.1.143:80;
+    server 192.168.1.144:80;
 }
 
 server {

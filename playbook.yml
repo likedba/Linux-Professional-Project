@@ -34,6 +34,7 @@
   become: yes
   roles:
     - php-fpm
+    - backend-nginx
     - wordpress
   tags: backend
 
