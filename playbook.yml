@@ -2,6 +2,13 @@
   become: yes
   gather_facts: yes
   tasks:
+    - name: Remove Grafana apt repository on Zabbix host
+      apt_repository:
+        repo: "deb https://apt.grafana.com stable main"
+        state: absent
+      when: inventory_hostname in groups['zabbix']
+      tags: update
+
     - name: Update and upgrade Ubuntu packages
       apt:
         update_cache: yes
