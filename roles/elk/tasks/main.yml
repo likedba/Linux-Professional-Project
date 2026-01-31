@@ -2,7 +2,7 @@
   apt:
     name:
       - docker.io
-      - docker-compose-plugin
+      - docker-compose
     state: present
     update_cache: yes
 
@@ -29,6 +29,6 @@
     mode: '0644'
 
 - name: Start ELK stack
-  command: docker compose up -d
+  command: docker-compose up -d
   args:
     chdir: /opt/elk
