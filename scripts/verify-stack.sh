@@ -14,7 +14,7 @@ section() {
 }
 
 filter_ips() {
-  tr -d '\r' | sed '/^$/d'
+  tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | grep -E '^[0-9a-fA-F:.]+$' || true
 }
 
 get_group_hosts() {
