@@ -99,7 +99,7 @@ mapfile -t backend_ip_list < <(get_group_ips_ini backend | filter_ips)
 if [[ ${#backend_ip_list[@]} -gt 0 ]]; then
   backend_ips="${backend_ip_list[*]}"
   echo "Backend IPs (from INI): ${backend_ips}"
-  ansible -i "$INVENTORY_PATH" frontend -m shell -a "for ip in $backend_ips; do echo \"-- http://\\$ip --\"; curl -I --max-time 5 \"http://\\$ip\" || true; echo; done"
+  ansible -i "$INVENTORY_PATH" frontend -m shell -a 'for ip in '"$backend_ips"'; do echo "-- http://$ip --"; curl -I --max-time 5 "http://$ip" || true; echo; done'
 else
   echo "No backend IPs found in inventory; skipping reachability check."
 fi
