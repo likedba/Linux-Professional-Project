@@ -1,0 +1,21 @@
+- name: Check if WordPress database user exists
+  command: "psql -tAc \"SELECT 1 FROM pg_roles WHERE rolname='{{ wordpress_db_user }}'\""
+  register: wordpress_db_user_check
+  changed_when: false
+  become_user: postgres
+
+- name: Create WordPress database user
+  command: "psql -c \"CREATE USER {{ wordpress_db_user }} WITH PASSWORD '{{ wordpress_db_password }}'\""
+  when: wordpress_db_user_check.stdout.strip() != "1"
+  become_user: postgres
+
+- name: Check if WordPress database exists
+  command: "psql -tAc \"SELECT 1 FROM pg_database WHERE datname='{{ wordpress_db_name }}'\""
+  register: wordpress_db_check
+  changed_when: false
+  become_user: postgres
+
+- name: Create WordPress database
+  command: "psql -c \"CREATE DATABASE {{ wordpress_db_name }} OWNER {{ wordpress_db_user }} ENCODING 'UTF8'\""
+  when: wordpress_db_check.stdout.strip() != "1"
+  become_user: postgres
