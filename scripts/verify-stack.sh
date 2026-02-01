@@ -23,6 +23,24 @@ get_group_hosts() {
 
 get_group_ips() {
   local group="$1"
+  if command -v ansible-inventory >/dev/null 2>&1; then
+    ansible-inventory -i "$INVENTORY_PATH" --list \
+      | python3 - "$group" <<'PY'
+import json
+import sys
+
+group = sys.argv[1]
+data = json.load(sys.stdin)
+hosts = data.get(group, {}).get("hosts", [])
+hostvars = data.get("_meta", {}).get("hostvars", {})
+for host in hosts:
+    ip = hostvars.get(host, {}).get("ansible_host")
+    if ip:
+        print(ip)
+PY
+    return 0
+  fi
+
   awk -v group="$group" '
     $0 ~ /^\[/ { in_group=($0=="["group"]") }
     in_group && $1 !~ /^\[/ && $1 !~ /^$/ {
@@ -60,10 +78,14 @@ ansible -i "$INVENTORY_PATH" backend -m shell -a "sudo -n grep -F \"DB_HOST\" /v
 
 section "Frontend -> Backend HTTP reachability"
 backend_ips=$(get_group_ips backend | paste -sd' ' -)
-ansible -i "$INVENTORY_PATH" frontend -m shell -a "for ip in $backend_ips; do echo \"-- http://$ip --\"; curl -I --max-time 5 \"http://$ip\" || true; echo; done"
+if [[ -n "${backend_ips// /}" ]]; then
+  ansible -i "$INVENTORY_PATH" frontend -m shell -a "for ip in $backend_ips; do echo \"-- http://$ip --\"; curl -I --max-time 5 \"http://$ip\" || true; echo; done"
+else
+  echo "No backend IPs found in inventory; skipping reachability check."
+fi
 
 section "ELK: Docker containers + health"
-ansible -i "$INVENTORY_PATH" elk -m shell -a "docker ps --format '{{.Image}}' | grep -E 'elasticsearch|logstash|kibana'"
+ansible -i "$INVENTORY_PATH" elk -m shell -a "docker ps --format '{{\"{{\"}}.Image{{\"}}\"}}' | grep -E 'elasticsearch|logstash|kibana'"
 while read -r ip; do
   [[ -z "$ip" ]] && continue
   echo "-- Elasticsearch https://$ip:9200 --"
