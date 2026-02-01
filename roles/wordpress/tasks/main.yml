@@ -25,7 +25,7 @@
 
 - name: Download pg4wp (PostgreSQL for WordPress)
   get_url:
-    url: https://github.com/kevinoid/postgresql-for-wordpress/archive/refs/heads/master.tar.gz
+    url: https://github.com/kevinoid/postgresql-for-wordpress/archive/refs/heads/main.tar.gz
     dest: /tmp/pg4wp-master.tar.gz
     mode: '0644'
   tags: wordpress
