@@ -26,7 +26,7 @@ get_group_ips() {
   if command -v ansible-inventory >/dev/null 2>&1; then
     inv_json=$(ansible-inventory -i "$INVENTORY_PATH" --list 2>/dev/null || true)
     if [[ -n "$inv_json" ]]; then
-      if python3 - "$group" <<'PY' <<<"$inv_json"; then
+      inv_ips=$(python3 - "$group" <<'PY' <<<"$inv_json" || true)
 import json
 import sys
 
@@ -34,7 +34,7 @@ try:
     group = sys.argv[1]
     data = json.load(sys.stdin)
 except Exception:
-    sys.exit(1)
+    sys.exit(0)
 
 hosts = data.get(group, {}).get("hosts", [])
 hostvars = data.get("_meta", {}).get("hostvars", {})
@@ -43,6 +43,8 @@ for host in hosts:
     if ip:
         print(ip)
 PY
+      if [[ -n "${inv_ips// /}" ]]; then
+        printf "%s\n" "$inv_ips"
         return 0
       fi
     fi
