@@ -24,8 +24,9 @@ get_group_hosts() {
 get_group_ips() {
   local group="$1"
   if command -v ansible-inventory >/dev/null 2>&1; then
-    ansible-inventory -i "$INVENTORY_PATH" --list \
-      | python3 - "$group" <<'PY'
+    inv_json=$(ansible-inventory -i "$INVENTORY_PATH" --list 2>/dev/null || true)
+    if [[ -n "$inv_json" ]]; then
+      python3 - "$group" <<'PY' <<<"$inv_json"
 import json
 import sys
 
@@ -38,7 +39,8 @@ for host in hosts:
     if ip:
         print(ip)
 PY
-    return 0
+      return 0
+    fi
   fi
 
   awk -v group="$group" '
@@ -55,7 +57,7 @@ ansible -i "$INVENTORY_PATH" all -m ping
 section "Frontend: nginx service + open ports"
 ansible -i "$INVENTORY_PATH" frontend -m shell -a "systemctl is-active nginx"
 ansible -i "$INVENTORY_PATH" frontend -m shell -a "ss -tuln"
-ansible -i "$INVENTORY_PATH" frontend -m shell -a "sudo -n ufw status verbose || echo 'ufw check skipped (sudo required)'"
+ansible -i "$INVENTORY_PATH" frontend -m shell -a "sudo -n ufw status verbose 2>/dev/null || echo 'ufw check skipped (sudo required)'"
 
 section "Frontend: HTTPS response (self-signed allowed)"
 while read -r ip; do
@@ -74,7 +76,7 @@ ansible -i "$INVENTORY_PATH" backend -m shell -a "systemctl list-units --type=se
 ansible -i "$INVENTORY_PATH" backend -m shell -a "ss -tuln | grep -E '(:80|:9000)'"
 
 section "Backend: WordPress DB driver load-balancing string"
-ansible -i "$INVENTORY_PATH" backend -m shell -a "sudo -n grep -F \"DB_HOST\" /var/www/wordpress/wp-config.php || echo 'wp-config check skipped (sudo required)'"
+ansible -i "$INVENTORY_PATH" backend -m shell -a "sudo -n grep -F \"DB_HOST\" /var/www/wordpress/wp-config.php 2>/dev/null || echo 'wp-config check skipped (sudo required)'"
 
 section "Frontend -> Backend HTTP reachability"
 backend_ips=$(get_group_ips backend | paste -sd' ' -)
@@ -85,7 +87,7 @@ else
 fi
 
 section "ELK: Docker containers + health"
-ansible -i "$INVENTORY_PATH" elk -m shell -a "docker ps --format '{{\"{{\"}}.Image{{\"}}\"}}' | grep -E 'elasticsearch|logstash|kibana'"
+ansible -i "$INVENTORY_PATH" elk -m shell -a "sudo -n docker ps --format '{{\"{{\"}}.Image{{\"}}\"}}' 2>/dev/null | grep -E 'elasticsearch|logstash|kibana' || echo 'docker ps check skipped (sudo required)'"
 while read -r ip; do
   [[ -z "$ip" ]] && continue
   echo "-- Elasticsearch https://$ip:9200 --"
@@ -110,11 +112,11 @@ section "Patroni cluster reachability (PostgreSQL)"
 ansible -i "$INVENTORY_PATH" database -m shell -a "ss -tuln | grep -E ':5432'"
 
 section "Frontend: recent nginx errors (502 diagnostics)"
-ansible -i "$INVENTORY_PATH" frontend -m shell -a "sudo -n tail -n 50 /var/log/nginx/error.log || echo 'nginx error log check skipped (sudo required)'"
+ansible -i "$INVENTORY_PATH" frontend -m shell -a "sudo -n tail -n 50 /var/log/nginx/error.log 2>/dev/null || echo 'nginx error log check skipped (sudo required)'"
 
 section "Backend: recent nginx/php-fpm errors (502 diagnostics)"
-ansible -i "$INVENTORY_PATH" backend -m shell -a "sudo -n tail -n 50 /var/log/nginx/error.log || echo 'nginx error log check skipped (sudo required)'"
-ansible -i "$INVENTORY_PATH" backend -m shell -a "sudo -n sh -c 'ls /var/log/php*-fpm.log /var/log/php/*fpm.log 2>/dev/null | head -n 1 | xargs -r tail -n 50' || echo 'php-fpm log check skipped (sudo required)'"
+ansible -i "$INVENTORY_PATH" backend -m shell -a "sudo -n tail -n 50 /var/log/nginx/error.log 2>/dev/null || echo 'nginx error log check skipped (sudo required)'"
+ansible -i "$INVENTORY_PATH" backend -m shell -a "sudo -n sh -c 'ls /var/log/php*-fpm.log /var/log/php/*fpm.log 2>/dev/null | head -n 1 | xargs -r tail -n 50' 2>/dev/null || echo 'php-fpm log check skipped (sudo required)'"
 
 section "Inventory summary"
 for group in frontend backend database elk zabbix control; do
