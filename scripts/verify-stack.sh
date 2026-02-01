@@ -36,8 +36,8 @@ ansible -i "$INVENTORY_PATH" all -m ping
 
 section "Frontend: nginx service + open ports"
 ansible -i "$INVENTORY_PATH" frontend -m shell -a "systemctl is-active nginx"
-ansible -i "$INVENTORY_PATH" frontend -m shell -a "ss -tuln"
-ansible -i "$INVENTORY_PATH" frontend -m shell -a "ufw status verbose || true"
+ansible -i "$INVENTORY_PATH" frontend -b -m shell -a "ss -tuln"
+ansible -i "$INVENTORY_PATH" frontend -b -m shell -a "ufw status verbose || true"
 
 section "Frontend: HTTPS response (self-signed allowed)"
 while read -r ip; do
@@ -53,10 +53,14 @@ while read -r ip; do
 section "Backend: nginx + php-fpm"
 ansible -i "$INVENTORY_PATH" backend -m shell -a "systemctl is-active nginx"
 ansible -i "$INVENTORY_PATH" backend -m shell -a "systemctl list-units --type=service --all | grep -E 'php[0-9.]*-fpm'"
-ansible -i "$INVENTORY_PATH" backend -m shell -a "ss -tuln | grep -E '(:80|:9000)'"
+ansible -i "$INVENTORY_PATH" backend -b -m shell -a "ss -tuln | grep -E '(:80|:9000)'"
 
 section "Backend: WordPress DB driver load-balancing string"
-ansible -i "$INVENTORY_PATH" backend -m shell -a "grep -F \"DB_HOST\" /var/www/wordpress/wp-config.php"
+ansible -i "$INVENTORY_PATH" backend -b -m shell -a "grep -F \"DB_HOST\" /var/www/wordpress/wp-config.php"
+
+section "Frontend -> Backend HTTP reachability"
+backend_ips=$(get_group_ips backend | paste -sd' ' -)
+ansible -i "$INVENTORY_PATH" frontend -m shell -a "for ip in $backend_ips; do echo \"-- http://$ip --\"; curl -I --max-time 5 \"http://$ip\" || true; echo; done"
 
 section "ELK: Docker containers + health"
 ansible -i "$INVENTORY_PATH" elk -m shell -a "docker ps --format '{{.Image}}' | grep -E 'elasticsearch|logstash|kibana'"
@@ -72,7 +76,7 @@ while read -r ip; do
 
 section "Zabbix server: services + ports"
 ansible -i "$INVENTORY_PATH" zabbix -m shell -a "systemctl is-active zabbix-server zabbix-agent apache2"
-ansible -i "$INVENTORY_PATH" zabbix -m shell -a "ss -tuln | grep -E '(:10050|:10051|:80|:443)'"
+ansible -i "$INVENTORY_PATH" zabbix -b -m shell -a "ss -tuln | grep -E '(:10050|:10051|:80|:443)'"
 while read -r ip; do
   [[ -z "$ip" ]] && continue
   echo "-- Zabbix frontend http://$ip/zabbix --"
@@ -81,7 +85,7 @@ while read -r ip; do
   done < <(get_group_ips zabbix)
 
 section "Patroni cluster reachability (PostgreSQL)"
-ansible -i "$INVENTORY_PATH" database -m shell -a "ss -tuln | grep -E ':5432'"
+ansible -i "$INVENTORY_PATH" database -b -m shell -a "ss -tuln | grep -E ':5432'"
 
 section "Inventory summary"
 for group in frontend backend database elk zabbix control; do
