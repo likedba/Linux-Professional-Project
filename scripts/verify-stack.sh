@@ -13,6 +13,10 @@ section() {
   echo "==== $* ===="
 }
 
+filter_ips() {
+  tr -d '\r' | sed '/^$/d'
+}
+
 get_group_hosts() {
   local group="$1"
   awk -v group="$group" '
@@ -71,7 +75,7 @@ while read -r ip; do
   echo "-- http://$ip (expect redirect) --"
   curl -I --max-time 5 "http://$ip" || true
   echo
-  done < <(get_group_ips frontend)
+  done < <(get_group_ips frontend | filter_ips)
 
 section "Backend: nginx + php-fpm"
 ansible -i "$INVENTORY_PATH" backend -m shell -a "systemctl is-active nginx"
@@ -82,8 +86,8 @@ section "Backend: WordPress DB driver load-balancing string"
 ansible -i "$INVENTORY_PATH" backend -m shell -a "sudo -n grep -F \"DB_HOST\" /var/www/wordpress/wp-config.php 2>/dev/null || echo 'wp-config check skipped (sudo required)'"
 
 section "Frontend -> Backend HTTP reachability"
-backend_ips=$(get_group_ips backend | paste -sd' ' -)
-if [[ -n "${backend_ips// /}" ]]; then
+backend_ips=$(get_group_ips backend | filter_ips | paste -sd' ' -)
+if [[ -n "$backend_ips" ]]; then
   ansible -i "$INVENTORY_PATH" frontend -m shell -a "for ip in $backend_ips; do echo \"-- http://$ip --\"; curl -I --max-time 5 \"http://$ip\" || true; echo; done"
 else
   echo "No backend IPs found in inventory; skipping reachability check."
@@ -99,7 +103,7 @@ while read -r ip; do
   echo "-- Kibana http://$ip:5601 --"
   curl -I --max-time 5 "http://$ip:5601" || true
   echo
-  done < <(get_group_ips elk)
+  done < <(get_group_ips elk | filter_ips)
 
 section "Zabbix server: services + ports"
 ansible -i "$INVENTORY_PATH" zabbix -m shell -a "systemctl is-active zabbix-server zabbix-agent apache2"
@@ -109,7 +113,7 @@ while read -r ip; do
   echo "-- Zabbix frontend http://$ip/zabbix --"
   curl -I --max-time 5 "http://$ip/zabbix" || true
   echo
-  done < <(get_group_ips zabbix)
+  done < <(get_group_ips zabbix | filter_ips)
 
 section "Patroni cluster reachability (PostgreSQL)"
 ansible -i "$INVENTORY_PATH" database -m shell -a "ss -tuln | grep -E ':5432'"
