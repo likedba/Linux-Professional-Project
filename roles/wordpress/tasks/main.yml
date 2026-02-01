@@ -23,6 +23,24 @@
     mode: '0640'
   tags: wordpress
 
+- name: Download pg4wp (PostgreSQL for WordPress)
+  unarchive:
+    src: https://github.com/kevinoid/postgresql-for-wordpress/archive/refs/heads/master.zip
+    dest: /var/www/wordpress/wp-content/
+    remote_src: yes
+    creates: /var/www/wordpress/wp-content/postgresql-for-wordpress-master
+  tags: wordpress
+
+- name: Install pg4wp db.php drop-in
+  copy:
+    src: /var/www/wordpress/wp-content/postgresql-for-wordpress-master/pg4wp/db.php
+    dest: /var/www/wordpress/wp-content/db.php
+    owner: www-data
+    group: www-data
+    mode: '0644'
+    remote_src: yes
+  tags: wordpress
+
 - name: Ensure WordPress debug log file exists
   file:
     path: /var/www/wordpress/wp-content/debug.log
