@@ -38,6 +38,12 @@
     - wordpress
   tags: backend
 
+- hosts: database
+  become: yes
+  roles:
+    - wordpress-db
+  tags: database
+
 - hosts: elk
   become: yes
   roles:
