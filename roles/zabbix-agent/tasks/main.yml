@@ -1,8 +1,39 @@
+- name: Install GnuPG for Zabbix repository
+  apt:
+    name: gnupg
+    state: present
+  tags: zabbix-agent
+
+- name: Download Zabbix GPG key
+  get_url:
+    url: https://repo.zabbix.com/zabbix-official-repo.key
+    dest: /usr/share/keyrings/zabbix.asc
+    mode: '0644'
+  register: zabbix_gpg_key
+  tags: zabbix-agent
+
+- name: Dearmor Zabbix GPG key
+  command: gpg --dearmor -o /usr/share/keyrings/zabbix.gpg /usr/share/keyrings/zabbix.asc
+  when: zabbix_gpg_key.changed
+  tags: zabbix-agent
+
+- name: Ensure Zabbix GPG key permissions
+  file:
+    path: /usr/share/keyrings/zabbix.gpg
+    mode: '0644'
+  tags: zabbix-agent
+
+- name: Add Zabbix repository
+  apt_repository:
+    repo: "deb [signed-by=/usr/share/keyrings/zabbix.gpg] https://repo.zabbix.com/zabbix/6.0/ubuntu {{ ansible_distribution_release }} main"
+    state: present
+    update_cache: yes
+  tags: zabbix-agent
+
 - name: Install Zabbix agent
   apt:
     name: zabbix-agent
     state: present
-    update_cache: yes
   tags: zabbix-agent
 
 - name: Configure Zabbix agent server settings
