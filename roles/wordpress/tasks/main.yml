@@ -22,3 +22,12 @@
     group: www-data
     mode: '0640'
   tags: wordpress
+
+- name: Ensure WordPress debug log file exists
+  file:
+    path: /var/www/wordpress/wp-content/debug.log
+    state: touch
+    owner: www-data
+    group: www-data
+    mode: '0640'
+  tags: wordpress
