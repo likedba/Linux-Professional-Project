@@ -56,7 +56,7 @@
     - zabbix
   tags: zabbix
 
-- hosts: frontend,backend,elk,control,zabbix
+- hosts: frontend,backend,elk,control,zabbix,database
   become: yes
   roles:
     - zabbix-agent
