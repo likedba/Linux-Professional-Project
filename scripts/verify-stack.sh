@@ -13,6 +13,19 @@ section() {
   echo "==== $* ===="
 }
 
+sudo_note() {
+  cat <<'EOF'
+NOTE: Some checks require passwordless sudo. To allow it for the current user,
+create a sudoers drop-in like:
+
+  sudo visudo -f /etc/sudoers.d/verify-stack
+
+  <USERNAME> ALL=(ALL) NOPASSWD: /usr/bin/ufw, /bin/systemctl, /usr/bin/ss, /usr/bin/tail, /usr/bin/grep, /usr/bin/psql, /usr/bin/docker, /bin/journalctl
+
+Replace <USERNAME> with your local user. Re-run this script afterward.
+EOF
+}
+
 filter_ips() {
   tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | grep -E '^[0-9a-fA-F:.]+$' || true
 }
@@ -131,12 +144,23 @@ done
 section "Patroni cluster reachability (PostgreSQL)"
 ansible -i "$INVENTORY_PATH" database -m shell -a "ss -tuln | grep -E ':5432'"
 
+section "Patroni: primary detection (pg_is_in_recovery)"
+ansible -i "$INVENTORY_PATH" database -m shell -a "sudo -n -u postgres psql -tAc \"SELECT pg_is_in_recovery()\" 2>/dev/null || echo 'primary check skipped (sudo required)'"
+
+section "Patroni: WordPress DB/user presence"
+ansible -i "$INVENTORY_PATH" database -m shell -a "sudo -n -u postgres psql -tAc \"SELECT rolname FROM pg_roles WHERE rolname='wpuser'\" 2>/dev/null || echo 'db user check skipped (sudo required)'"
+ansible -i "$INVENTORY_PATH" database -m shell -a "sudo -n -u postgres psql -tAc \"SELECT datname FROM pg_database WHERE datname='wordpress'\" 2>/dev/null || echo 'db name check skipped (sudo required)'"
+
 section "Frontend: recent nginx errors (502 diagnostics)"
 ansible -i "$INVENTORY_PATH" frontend -m shell -a "sudo -n tail -n 50 /var/log/nginx/error.log 2>/dev/null || echo 'nginx error log check skipped (sudo required)'"
 
 section "Backend: recent nginx/php-fpm errors (502 diagnostics)"
 ansible -i "$INVENTORY_PATH" backend -m shell -a "sudo -n tail -n 50 /var/log/nginx/error.log 2>/dev/null || echo 'nginx error log check skipped (sudo required)'"
 ansible -i "$INVENTORY_PATH" backend -m shell -a "sudo -n sh -c 'ls /var/log/php*-fpm.log /var/log/php/*fpm.log 2>/dev/null | head -n 1 | xargs -r tail -n 50' 2>/dev/null || echo 'php-fpm log check skipped (sudo required)'"
+ansible -i "$INVENTORY_PATH" backend -m shell -a "sudo -n tail -n 50 /var/www/wordpress/wp-content/debug.log 2>/dev/null || echo 'wordpress debug.log check skipped (sudo required)'"
+
+section "Sudo guidance"
+sudo_note
 
 section "Inventory summary"
 for group in frontend backend database elk zabbix control; do
