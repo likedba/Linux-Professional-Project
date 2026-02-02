@@ -44,8 +44,10 @@
     name: zabbix
     repo: "https://repo.zabbix.com/zabbix/7.0/sles/15/x86_64/"
     auto_import_keys: yes
+    disable_gpg_check: no
     state: present
     autorefresh: yes
+    runrefresh: yes
   when: ansible_os_family == "Suse"
   tags: zabbix-agent
 
@@ -60,6 +62,9 @@
   zypper:
     name: zabbix-agent2
     state: present
+    update_cache: yes
+    disable_gpg_check: no
+    extra_args: "--non-interactive"
   when: ansible_os_family == "Suse"
   tags: zabbix-agent
 
@@ -76,6 +81,9 @@
   zypper:
     name: zabbix-agent2-plugin-postgresql
     state: present
+    update_cache: yes
+    disable_gpg_check: no
+    extra_args: "--non-interactive"
   when:
     - ansible_os_family == "Suse"
     - "'database' in group_names"
