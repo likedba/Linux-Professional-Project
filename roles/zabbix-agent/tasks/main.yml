@@ -64,7 +64,6 @@
     state: present
     update_cache: yes
     disable_gpg_check: no
-    extra_args: "--non-interactive"
   when: ansible_os_family == "Suse"
   tags: zabbix-agent
 
@@ -83,7 +82,6 @@
     state: present
     update_cache: yes
     disable_gpg_check: no
-    extra_args: "--non-interactive"
   when:
     - ansible_os_family == "Suse"
     - "'database' in group_names"
