@@ -27,18 +27,24 @@
   apt_repository:
     repo: "deb [signed-by=/usr/share/keyrings/zabbix.gpg] https://repo.zabbix.com/zabbix/7.0/ubuntu {{ ansible_distribution_release }} main"
     state: present
-    update_cache: yes
   tags: zabbix-agent
 
-- name: Install Zabbix agent
+- name: Install Zabbix agent2
   apt:
-    name: zabbix-agent
+    name: zabbix-agent2
     state: present
   tags: zabbix-agent
 
-- name: Configure Zabbix agent server settings
+- name: Install Zabbix agent2 PostgreSQL plugin on database hosts
+  apt:
+    name: zabbix-agent2-plugin-postgresql
+    state: present
+  when: "'database' in group_names"
+  tags: zabbix-agent
+
+- name: Configure Zabbix agent2 server settings
   lineinfile:
-    path: /etc/zabbix/zabbix_agentd.conf
+    path: /etc/zabbix/zabbix_agent2.conf
     regexp: "^{{ item.key }}="
     line: "{{ item.key }}={{ item.value }}"
   loop:
@@ -47,9 +53,9 @@
     - { key: "Hostname", value: "{{ inventory_hostname }}" }
   tags: zabbix-agent
 
-- name: Ensure Zabbix agent is running and enabled
+- name: Ensure Zabbix agent2 is running and enabled
   systemd:
-    name: zabbix-agent
+    name: zabbix-agent2
     state: started
     enabled: yes
   tags: zabbix-agent
