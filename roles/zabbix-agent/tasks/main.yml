@@ -27,7 +27,6 @@
   apt_repository:
     repo: "deb [signed-by=/usr/share/keyrings/zabbix.gpg] https://repo.zabbix.com/zabbix/7.0/ubuntu {{ ansible_distribution_release }} main"
     state: present
-    update_cache: yes
   tags: zabbix-agent
 
 - name: Install Zabbix agent2
