@@ -36,6 +36,7 @@
       - zabbix-sql-scripts
       - zabbix-agent
       - libapache2-mod-php
+      - php-pgsql
     state: present
 
 - name: Ensure PostgreSQL is running and enabled
