@@ -21,7 +21,7 @@
 
 - name: Add Zabbix repository
   apt_repository:
-    repo: "deb [signed-by=/usr/share/keyrings/zabbix.gpg] https://repo.zabbix.com/zabbix/6.0/ubuntu {{ ansible_distribution_release }} main"
+    repo: "deb [signed-by=/usr/share/keyrings/zabbix.gpg] https://repo.zabbix.com/zabbix/7.0/ubuntu {{ ansible_distribution_release }} main"
     state: present
     update_cache: yes
 
@@ -35,6 +35,7 @@
       - zabbix-apache-conf
       - zabbix-sql-scripts
       - zabbix-agent
+      - libapache2-mod-php
     state: present
 
 - name: Ensure PostgreSQL is running and enabled
@@ -65,6 +66,10 @@
   when: zabbix_db_check.stdout.strip() != "1"
   become: yes
 
+- name: Ensure Zabbix database owner is zabbix
+  command: "sudo -u postgres psql -c \"ALTER DATABASE {{ zabbix_db_name }} OWNER TO {{ zabbix_db_user }}\""
+  become: yes
+
 - name: Check if Zabbix schema is loaded
   command: "sudo -u postgres psql -tAc \"SELECT 1 FROM information_schema.tables WHERE table_name='users'\" {{ zabbix_db_name }}"
   register: zabbix_schema_check
@@ -86,11 +91,35 @@
     - { key: "DBUser", value: "{{ zabbix_db_user }}" }
     - { key: "DBPassword", value: "{{ zabbix_db_password }}" }
 
-- name: Set PHP timezone for Zabbix frontend
+- name: Detect PHP version for Apache configuration
+  command: 'php -r ''echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;'''
+  register: zabbix_php_version
+  changed_when: false
+
+- name: Ensure PHP module is enabled for Apache
+  command: "a2enmod php{{ zabbix_php_version.stdout }}"
+  args:
+    creates: "/etc/apache2/mods-enabled/php{{ zabbix_php_version.stdout }}.load"
+
+- name: Set PHP timezone for Apache
+  ini_file:
+    path: "/etc/php/{{ zabbix_php_version.stdout }}/apache2/php.ini"
+    section: Date
+    option: date.timezone
+    value: "{{ zabbix_php_timezone }}"
+
+- name: Set PHP timezone for CLI
+  ini_file:
+    path: "/etc/php/{{ zabbix_php_version.stdout }}/cli/php.ini"
+    section: Date
+    option: date.timezone
+    value: "{{ zabbix_php_timezone }}"
+
+- name: Remove php_value timezone from Zabbix Apache config
   lineinfile:
     path: /etc/zabbix/apache.conf
     regexp: '^php_value\[date.timezone\]'
-    line: "php_value[date.timezone] = {{ zabbix_php_timezone }}"
+    state: absent
 
 - name: Ensure Zabbix server is running and enabled
   systemd:
