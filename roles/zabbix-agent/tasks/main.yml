@@ -47,7 +47,7 @@
     disable_gpg_check: no
     state: present
     autorefresh: yes
-    runrefresh: yes
+    runrefresh: no
   when: ansible_os_family == "Suse"
   tags: zabbix-agent
 
@@ -62,7 +62,7 @@
   zypper:
     name: zabbix-agent2
     state: present
-    update_cache: yes
+    update_cache: no
     disable_gpg_check: no
   when: ansible_os_family == "Suse"
   tags: zabbix-agent
@@ -80,7 +80,7 @@
   zypper:
     name: zabbix-agent2-plugin-postgresql
     state: present
-    update_cache: yes
+    update_cache: no
     disable_gpg_check: no
   when:
     - ansible_os_family == "Suse"
