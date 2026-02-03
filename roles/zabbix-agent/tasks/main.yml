@@ -64,7 +64,6 @@
     state: present
     update_cache: no
     disable_gpg_check: no
-    extra_args: "--gpg-auto-import-keys"
   environment:
     ZYPP_NONINTERACTIVE: "1"
     ZYPP_LOCK_TIMEOUT: "60"
@@ -86,7 +85,6 @@
     state: present
     update_cache: no
     disable_gpg_check: no
-    extra_args: "--gpg-auto-import-keys"
   environment:
     ZYPP_NONINTERACTIVE: "1"
     ZYPP_LOCK_TIMEOUT: "60"
