@@ -1,13 +1,101 @@
-- name: Install Zabbix agent
+- name: Install GnuPG for Zabbix repository (Debian)
   apt:
-    name: zabbix-agent
+    name: gnupg
     state: present
-    update_cache: yes
+  when: ansible_os_family == "Debian"
   tags: zabbix-agent
 
-- name: Configure Zabbix agent server settings
+- name: Download Zabbix GPG key (Debian)
+  get_url:
+    url: https://repo.zabbix.com/zabbix-official-repo.key
+    dest: /usr/share/keyrings/zabbix.asc
+    mode: '0644'
+  register: zabbix_gpg_key
+  retries: 3
+  delay: 5
+  until: zabbix_gpg_key is succeeded
+  when: ansible_os_family == "Debian"
+  tags: zabbix-agent
+
+- name: Dearmor Zabbix GPG key (Debian)
+  command: gpg --dearmor -o /usr/share/keyrings/zabbix.gpg /usr/share/keyrings/zabbix.asc
+  when:
+    - ansible_os_family == "Debian"
+    - zabbix_gpg_key.changed
+  tags: zabbix-agent
+
+- name: Ensure Zabbix GPG key permissions (Debian)
+  file:
+    path: /usr/share/keyrings/zabbix.gpg
+    mode: '0644'
+  when: ansible_os_family == "Debian"
+  tags: zabbix-agent
+
+- name: Add Zabbix repository (Debian)
+  apt_repository:
+    repo: "deb [signed-by=/usr/share/keyrings/zabbix.gpg] https://repo.zabbix.com/zabbix/7.0/ubuntu {{ ansible_distribution_release }} main"
+    state: present
+    update_cache: yes
+  when: ansible_os_family == "Debian"
+  tags: zabbix-agent
+
+- name: Add Zabbix repository (SLES)
+  zypper_repository:
+    name: zabbix
+    repo: "https://repo.zabbix.com/zabbix/7.0/sles/15/x86_64/"
+    auto_import_keys: yes
+    disable_gpg_check: no
+    state: present
+    autorefresh: yes
+    runrefresh: no
+  when: ansible_os_family == "Suse"
+  tags: zabbix-agent
+
+- name: Install Zabbix agent2 (Debian)
+  apt:
+    name: zabbix-agent2
+    state: present
+  when: ansible_os_family == "Debian"
+  tags: zabbix-agent
+
+- name: Install Zabbix agent2 (SLES)
+  zypper:
+    name: zabbix-agent2
+    state: present
+    update_cache: no
+    disable_gpg_check: no
+  environment:
+    ZYPP_NONINTERACTIVE: "1"
+    ZYPP_LOCK_TIMEOUT: "60"
+  when: ansible_os_family == "Suse"
+  tags: zabbix-agent
+
+- name: Install Zabbix agent2 PostgreSQL plugin on database hosts (Debian)
+  apt:
+    name: zabbix-agent2-plugin-postgresql
+    state: present
+  when:
+    - ansible_os_family == "Debian"
+    - "'database' in group_names"
+  tags: zabbix-agent
+
+- name: Install Zabbix agent2 PostgreSQL plugin on database hosts (SLES)
+  zypper:
+    name: zabbix-agent2-plugin-postgresql
+    state: present
+    update_cache: no
+    disable_gpg_check: no
+  environment:
+    ZYPP_NONINTERACTIVE: "1"
+    ZYPP_LOCK_TIMEOUT: "60"
+  when:
+    - ansible_os_family == "Suse"
+    - "'database' in group_names"
+  tags: zabbix-agent
+
+- name: Configure Zabbix agent2 server settings
   lineinfile:
-    path: /etc/zabbix/zabbix_agentd.conf
+    path: /etc/zabbix/zabbix_agent2.conf
     regexp: "^{{ item.key }}="
     line: "{{ item.key }}={{ item.value }}"
   loop:
@@ -16,9 +104,9 @@
     - { key: "Hostname", value: "{{ inventory_hostname }}" }
   tags: zabbix-agent
 
-- name: Ensure Zabbix agent is running and enabled
+- name: Ensure Zabbix agent2 is running and enabled
   systemd:
-    name: zabbix-agent
+    name: zabbix-agent2
     state: started
     enabled: yes
   tags: zabbix-agent
