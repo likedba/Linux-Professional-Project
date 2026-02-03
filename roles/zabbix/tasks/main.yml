@@ -70,6 +70,18 @@
   command: "sudo -u postgres psql -c \"ALTER DATABASE {{ zabbix_db_name }} OWNER TO {{ zabbix_db_user }}\""
   become: yes
 
+- name: Grant Zabbix privileges on public tables
+  command: "sudo -u postgres psql -d {{ zabbix_db_name }} -c \"GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO {{ zabbix_db_user }};\""
+  become: yes
+
+- name: Grant Zabbix privileges on public sequences
+  command: "sudo -u postgres psql -d {{ zabbix_db_name }} -c \"GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO {{ zabbix_db_user }};\""
+  become: yes
+
+- name: Grant Zabbix privileges on public functions
+  command: "sudo -u postgres psql -d {{ zabbix_db_name }} -c \"GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public TO {{ zabbix_db_user }};\""
+  become: yes
+
 - name: Check if Zabbix schema is loaded
   command: "sudo -u postgres psql -tAc \"SELECT 1 FROM information_schema.tables WHERE table_name='users'\" {{ zabbix_db_name }}"
   register: zabbix_schema_check
@@ -120,6 +132,22 @@
     path: /etc/zabbix/apache.conf
     regexp: '^php_value\[date.timezone\]'
     state: absent
+
+- name: Ensure Zabbix server unit uses Type=simple
+  lineinfile:
+    path: /usr/lib/systemd/system/zabbix-server.service
+    regexp: '^Type='
+    line: 'Type=simple'
+
+- name: Remove ExecStop from Zabbix server unit
+  lineinfile:
+    path: /usr/lib/systemd/system/zabbix-server.service
+    regexp: '^ExecStop='
+    state: absent
+
+- name: Reload systemd for Zabbix server unit changes
+  systemd:
+    daemon_reload: yes
 
 - name: Ensure Zabbix server is running and enabled
   systemd:
