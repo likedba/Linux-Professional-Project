@@ -21,7 +21,7 @@
 
 - name: Add Zabbix repository
   apt_repository:
-    repo: "deb [signed-by=/usr/share/keyrings/zabbix.gpg] https://repo.zabbix.com/zabbix/6.0/ubuntu {{ ansible_distribution_release }} main"
+    repo: "deb [signed-by=/usr/share/keyrings/zabbix.gpg] https://repo.zabbix.com/zabbix/7.0/ubuntu {{ ansible_distribution_release }} main"
     state: present
     update_cache: yes
 
@@ -63,6 +63,10 @@
 - name: Create Zabbix database
   command: "sudo -u postgres psql -c \"CREATE DATABASE {{ zabbix_db_name }} OWNER {{ zabbix_db_user }} ENCODING 'UTF8'\""
   when: zabbix_db_check.stdout.strip() != "1"
+  become: yes
+
+- name: Ensure Zabbix database owner is zabbix
+  command: "sudo -u postgres psql -c \"ALTER DATABASE {{ zabbix_db_name }} OWNER TO {{ zabbix_db_user }}\""
   become: yes
 
 - name: Check if Zabbix schema is loaded
