@@ -38,6 +38,12 @@
     - wordpress
   tags: backend
 
+- hosts: database
+  become: yes
+  roles:
+    - wordpress-db
+  tags: database
+
 - hosts: elk
   become: yes
   roles:
@@ -50,7 +56,7 @@
     - zabbix
   tags: zabbix
 
-- hosts: frontend,backend,elk,control,zabbix
+- hosts: frontend,backend,elk,control,zabbix,database
   become: yes
   roles:
     - zabbix-agent
