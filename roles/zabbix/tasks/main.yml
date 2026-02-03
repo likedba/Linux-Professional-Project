@@ -92,7 +92,7 @@
     - { key: "DBPassword", value: "{{ zabbix_db_password }}" }
 
 - name: Detect PHP version for Apache configuration
-  command: "php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;'"
+  command: 'php -r ''echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;'''
   register: zabbix_php_version
   changed_when: false
 
