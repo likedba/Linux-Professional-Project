@@ -35,6 +35,7 @@
       - zabbix-apache-conf
       - zabbix-sql-scripts
       - zabbix-agent
+      - libapache2-mod-php
     state: present
 
 - name: Ensure PostgreSQL is running and enabled
@@ -90,11 +91,35 @@
     - { key: "DBUser", value: "{{ zabbix_db_user }}" }
     - { key: "DBPassword", value: "{{ zabbix_db_password }}" }
 
-- name: Set PHP timezone for Zabbix frontend
+- name: Detect PHP version for Apache configuration
+  command: "php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;'"
+  register: zabbix_php_version
+  changed_when: false
+
+- name: Ensure PHP module is enabled for Apache
+  command: "a2enmod php{{ zabbix_php_version.stdout }}"
+  args:
+    creates: "/etc/apache2/mods-enabled/php{{ zabbix_php_version.stdout }}.load"
+
+- name: Set PHP timezone for Apache
+  ini_file:
+    path: "/etc/php/{{ zabbix_php_version.stdout }}/apache2/php.ini"
+    section: Date
+    option: date.timezone
+    value: "{{ zabbix_php_timezone }}"
+
+- name: Set PHP timezone for CLI
+  ini_file:
+    path: "/etc/php/{{ zabbix_php_version.stdout }}/cli/php.ini"
+    section: Date
+    option: date.timezone
+    value: "{{ zabbix_php_timezone }}"
+
+- name: Remove php_value timezone from Zabbix Apache config
   lineinfile:
     path: /etc/zabbix/apache.conf
     regexp: '^php_value\[date.timezone\]'
-    line: "php_value[date.timezone] = {{ zabbix_php_timezone }}"
+    state: absent
 
 - name: Ensure Zabbix server is running and enabled
   systemd:
